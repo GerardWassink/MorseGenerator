@@ -8,8 +8,9 @@
  *   0.2  : Added
  *            #commands
  *            tx pin (for future use to turn transmitter on)
+ *   0.3  : Small correction of last character disappearing
  * ------------------------------------------------------------------------- */
-#define progVersion "0.2"                   // Program version definition
+#define progVersion "0.3"                   // Program version definition
 /* ------------------------------------------------------------------------- *
  *             GNU LICENSE CONDITIONS
  * ------------------------------------------------------------------------- *
@@ -199,7 +200,7 @@ void validCommands() {
 void outputMorse(String inputText) {
   txOn();
   int limit = inputText.length();       // Determine length
-  for (int p = 0; p < limit - 1; p++) { 
+  for (int p = 0; p < limit; p++) { 
     char c = inputText[p];              // Look at every character in the input
     if (c >= ' ' && c <= 'Z') {         //   is it in our range?
       morseChar(c);                     //     then output as morse beeps
