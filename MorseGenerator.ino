@@ -9,8 +9,11 @@
  *            #commands
  *            tx pin (for future use to turn transmitter on)
  *   0.3  : Small correction of last character disappearing
+ *   0.4  : Optimized string handling to free SRAM
+ *          Optimized text handling and help info
+ *          Some code cleanup & comment improvements
  * ------------------------------------------------------------------------- */
-#define progVersion "0.3"                   // Program version definition
+#define progVersion "0.4"                   // Program version definition
 /* ------------------------------------------------------------------------- *
  *             GNU LICENSE CONDITIONS
  * ------------------------------------------------------------------------- *
@@ -36,29 +39,31 @@
 /* ------------------------------------------------------------------------- *
  *       Functional defines
  * ------------------------------------------------------------------------- */
-#define audioPin  8
-#define txPin     9
-#define callSign  "PD1GAW"
-
-unsigned int frequency  = 1200;
-unsigned long dotLen    = 75;
-unsigned long dashLen   = 3 * dotLen;
-unsigned long spaceLen  = 14 * dotLen;
+#define audioPin  8                     // pin to hook up buzzer
+#define txPin     9                     // pin to hook up relay for tx
+#define callSign  "PD1GAW"              // personal callsign
 
 /* ------------------------------------------------------------------------- *
  *       Function declarations
  * ------------------------------------------------------------------------- */
-void txOn();
-void txOff();
-void commandRoutine();
-void morseChar();
-void initTable();
-void outputMorse();
+void initTable();                       // initialize interpretation table
+void commandRoutine();                  // interpret and execute # commands
+void outputMorse();                     // convert input to morse code
+void morseChar();                       // ... same for every chaacter
+void txOn();                            // start transmitting
+void txOff();                           // stop transmitting
+void showVars();                        // show current parameter values
+void showHelp();                        // show help information
 
 /* ------------------------------------------------------------------------- *
  *       Global variable declarations
  * ------------------------------------------------------------------------- */
-String morseTable['Z'-' '+1];
+unsigned int frequency  = 1200;         // start at 1200 Hz
+unsigned long dotLen    = 75;           // start value for dots
+unsigned long dashLen   = 3 * dotLen;   // calculate dash lenght
+unsigned long spaceLen  = 14 * dotLen;  // calculate space lenght
+
+String morseTable['Z'-' '+1];           // declare morse code table
 
 
 /* ------------------------------------------------------------------------- *
@@ -70,27 +75,14 @@ void setup() {
   initTable();                          // Initialize morse code table
 
                                         // Initial show settings
-  Serial.print("PD1GAW - MorseGenerator version ");
+  Serial.print( F("PD1GAW - MorseGenerator version ") );
   Serial.println(progVersion);
 
-  Serial.print("Frequency   : ");
-  Serial.println(frequency);
+  showVars();
 
-  Serial.print("Dot length  : ");
-  Serial.println(dotLen);
-
-  Serial.print("Dash length : ");
-  Serial.println(dashLen);
-
-  Serial.print("Space length: ");
-  Serial.println(spaceLen);
-
-  Serial.println("Use # for help info");
+  Serial.println( F("Use # for help info") );
 
   outputMorse(callSign);
-
-  Serial.println(" ");                  // Initial prompt
-  Serial.print("> ");
 }
 
 
@@ -103,81 +95,84 @@ void loop()
   int pointer = 0;
   String inputText = "";
   
-  while (Serial.available() == 0) {}    // Wait untill serial input waiting
+  Serial.println(" ");                  // Prompt
+  Serial.print("> ");
+
+  while (Serial.available() == 0) {}    // Wait untill serial input available
   inputText = Serial.readString();      // Read string from serial input
   inputText.toUpperCase();              // Convert to uppercase
-  inputText.trim();
+  inputText.trim();                     // Strip leading & trailing whitespace
 
   Serial.println(inputText);            // Echo text to serial
 
-  if (inputText[0] == '#') {
+  if (inputText[0] == '#') {            // Command input?
     commandRoutine(inputText);
-  } else{
-    outputMorse(inputText);
+  } else {
+    outputMorse(inputText);             // else generate morse code
   }
-
-  Serial.println(" ");                  // Next prompt
-  Serial.print("> ");
 
 }
 
 
 /* ------------------------------------------------------------------------- *
  *       Handle every text                                     outputMorse()
+ * ------------------------------------------------------------------------- *
+ * We come here knowing that the first character is a "#" sign
  * ------------------------------------------------------------------------- */
 void commandRoutine(String inputText) {
-  int l = inputText.length();
+  int len = inputText.length();
   int val = 0;
 
-  if (l == 1) {
-    validCommands();
-  } else {
-    String command = String(inputText.substring(1,4));
-    String operand = String(inputText.substring(5,l));
+  if (len == 1) {                       // just the # ? then  Help info
+    showHelp();
 
+  } else {                              // isolate command and operand
+    String command = String(inputText.substring(1,4) );
+    String operand = String(inputText.substring(5,len) );
+
+                                        // handle DOT command
     if (command.compareTo("DOT") == 0) {
       val = operand.toInt();
+
       if (val > 0) {
         Serial.println();
-        Serial.print("DOT value is ");
+        Serial.print( F("DOT value is ") );
         Serial.println(val);
-        dotLen   = val;
-        dashLen  = 3 * dotLen;
-        spaceLen = 14 * dotLen;
+        dotLen   = val;                 // Set dot length
+        dashLen  = 3 * dotLen;          // Calculate new dash length
+        spaceLen = 14 * dotLen;         // Calculate new space length
       } else {
         Serial.println();
-        Serial.print("operand not valid: ");
+        Serial.print( F("operand not valid: ") );
         Serial.println(operand);
       }
-
+                                        // handle FRQ command
     } else if (command.compareTo("FRQ") == 0) {
       val = operand.toInt();
       if (val > 0) {
         Serial.println();
-        Serial.print("FRQ value is ");
+        Serial.print( F("FRQ value is ") );
         Serial.println(val);
-        frequency = val;
+        frequency = val;                // Set tone frequency
+
       } else {
         Serial.println();
-        Serial.print("operand not valid: ");
+        Serial.print( F("operand not valid: ") );
         Serial.println(operand);
       }
+
+                                        // handle VAL command
     } else if (command.compareTo("VAL") == 0) {
-      Serial.print("Frequency   : ");
-      Serial.println(frequency);
+      showVars();
 
-      Serial.print("Dot length  : ");
-      Serial.println(dotLen);
+                                        // handle HLP command
+    } else if (command.compareTo("HLP") == 0) {
+      showHelp();
 
-      Serial.print("Dash length : ");
-      Serial.println(dashLen);
-
-      Serial.print("Space length: ");
-      Serial.println(spaceLen);
     } else {
-      Serial.print("Invalid command : ");
+      Serial.print( F("Invalid command : ") );
       Serial.println(command);
-      validCommands();
+      showHelp();
     }
   }
 }
@@ -186,11 +181,34 @@ void commandRoutine(String inputText) {
 /* ------------------------------------------------------------------------- *
  *       Show valid commands                                 validCommands()
  * ------------------------------------------------------------------------- */
-void validCommands() {
-  Serial.println("PD1GAW - MorseGenerator - help info");
-  Serial.println("Changing the morse speed     - '#dot value'");
-  Serial.println("Changing the morse frequency - '#frq value'");
-  Serial.println("Show all current values      - '#val'");
+void showHelp() {
+  Serial.println( F("PD1GAW - MorseGenerator - help info") );
+  Serial.println(" ");
+  Serial.println( F("Type anything with valid morse code characters and it will") );
+  Serial.println( F("be converted to morse code, on the screen as well as in sound.") );
+  Serial.println( F("Non valid morse code characters will be discarded.") );
+  Serial.println(" ");
+  Serial.println( F("Commands start with a '#':") );
+  Serial.println( F("  #dot value - Changing the morse speed") );
+  Serial.println( F("  #frq value - Changing the morse frequency") );
+  Serial.println( F("  #val       - Show all current values") );
+  Serial.println( F("  #          - Show this help info") );
+}
+
+
+/* ------------------------------------------------------------------------- *
+ *       Show variables                                           showVars()
+ * ------------------------------------------------------------------------- */
+void showVars() {
+  Serial.println( F("Current parameter values") );
+  Serial.print( F("Frequency   : ") );
+  Serial.println(frequency);
+  Serial.print( F("Dot length  : ") );
+  Serial.println(dotLen);
+  Serial.print( F("Dash length : ") );
+  Serial.println(dashLen);
+  Serial.print( F("Space length: ") );
+  Serial.println(spaceLen);
 }
 
 
@@ -198,15 +216,17 @@ void validCommands() {
  *       Handle every text                                     outputMorse()
  * ------------------------------------------------------------------------- */
 void outputMorse(String inputText) {
-  txOn();
-  int limit = inputText.length();       // Determine length
+  txOn();                               // Transmitter on
+
+  int limit = inputText.length();       // Determine length of input text
   for (int p = 0; p < limit; p++) { 
     char c = inputText[p];              // Look at every character in the input
     if (c >= ' ' && c <= 'Z') {         //   is it in our range?
       morseChar(c);                     //     then output as morse beeps
     }
   }
-  txOff();
+
+  txOff();                              // Transmitter off
 }
 
 
@@ -244,7 +264,7 @@ void morseChar(char c)
       
     default:
       Serial.print(morseCode);          // Print morse code
-      Serial.print("  ");              // Print seperator
+      Serial.print("  ");               // Print seperator
       break;
   }
 
@@ -253,6 +273,7 @@ void morseChar(char c)
  * morseTable
  * ------------------------------------------------------------------------- */
   int len = morseCode.length();
+  
   for (int i=0; i<len; i++) {
     char x = morseCode[i];
 
@@ -309,7 +330,7 @@ void txOff()
  * ------------------------------------------------------------------------- */
 void initTable()
 {
-  morseTable[' '-' ']  = "S";            // SPACE
+  morseTable[' '-' ']  = "S";            // S means SPACE
   morseTable['!'-' ']  = "-.-.--";
   morseTable['"'-' ']  = ".-..-.";
   morseTable['#'-' ']  = "0";
