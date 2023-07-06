@@ -12,8 +12,9 @@
  *   0.4  : Optimized string handling to free SRAM
  *          Optimized text handling and help info
  *          Some code cleanup & comment improvements
+ *   1.0  : First release, based on version 0.4
  * ------------------------------------------------------------------------- */
-#define progVersion "0.4"                   // Program version definition
+#define progVersion "1.0"                   // Program version definition
 /* ------------------------------------------------------------------------- *
  *             GNU LICENSE CONDITIONS
  * ------------------------------------------------------------------------- *
