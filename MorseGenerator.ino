@@ -13,8 +13,9 @@
  *          Optimized text handling and help info
  *          Some code cleanup & comment improvements
  *   1.0  : First release, based on version 0.4
+ *   1.1  : Code cleanup, comment improvements
  * ------------------------------------------------------------------------- */
-#define progVersion "1.0"                   // Program version definition
+#define progVersion "1.1"                   // Program version definition
 /* ------------------------------------------------------------------------- *
  *             GNU LICENSE CONDITIONS
  * ------------------------------------------------------------------------- *
@@ -116,9 +117,10 @@ void loop()
 
 
 /* ------------------------------------------------------------------------- *
- *       Handle every text                                     outputMorse()
+ *       Handle commands                                    commandRoutine()
  * ------------------------------------------------------------------------- *
  * We come here knowing that the first character is a "#" sign
+ * Determine valid commands and execute them
  * ------------------------------------------------------------------------- */
 void commandRoutine(String inputText) {
   int len = inputText.length();
@@ -185,13 +187,13 @@ void commandRoutine(String inputText) {
 void showHelp() {
   Serial.println( F("PD1GAW - MorseGenerator - help info") );
   Serial.println(" ");
-  Serial.println( F("Type anything with valid morse code characters and it will") );
+  Serial.println( F("Type anything, the valid morse code characters will") );
   Serial.println( F("be converted to morse code, on the screen as well as in sound.") );
   Serial.println( F("Non valid morse code characters will be discarded.") );
   Serial.println(" ");
-  Serial.println( F("Commands start with a '#':") );
-  Serial.println( F("  #dot value - Changing the morse speed") );
-  Serial.println( F("  #frq value - Changing the morse frequency") );
+  Serial.println( F("Commands (always start with a '#'):") );
+  Serial.println( F("  #dot value - Change the morse speed") );
+  Serial.println( F("  #frq value - Change the morse frequency") );
   Serial.println( F("  #val       - Show all current values") );
   Serial.println( F("  #          - Show this help info") );
 }
@@ -214,7 +216,7 @@ void showVars() {
 
 
 /* ------------------------------------------------------------------------- *
- *       Handle every text                                     outputMorse()
+ *       Handle every non-command text                         outputMorse()
  * ------------------------------------------------------------------------- */
 void outputMorse(String inputText) {
   txOn();                               // Transmitter on
@@ -238,13 +240,13 @@ void outputMorse(String inputText) {
  * All characters in the range from SPACE to capital 'Z' are converted to  
  * an offset relative to 32 (x'20' or SPACE).
  * 
- * Characters below SPACE and above 'Z' are discarded.
- * 
- * So in the table, the space character is the first item with index 0,
- * hence the 'Z' character (with ascii value 90) is the 58th character.
+ * Characters below SPACE and above capital 'Z' are discarded.
  * 
  * The position of an input character c in the morseTable() is determined as:
  *   position = [c-' ']
+ * 
+ * So in the table, the space character is the first item with index 0,
+ * hence the 'Z' character (with ascii value 90) is the 58th character.
  * 
  * This will be the ascii-value of the character minus the ascii-value of SPACE
  * that we can use as an index in the morseTable()
@@ -252,7 +254,7 @@ void outputMorse(String inputText) {
  * ------------------------------------------------------------------------- */
 void morseChar(char c)
 {
-  String morseCode = morseTable[c-' ']; // Index in morseTable
+  String morseCode = morseTable[c-' ']; // Index in two-dimensional morseTable
 
   switch (morseCode[0]) {
 
@@ -264,15 +266,15 @@ void morseChar(char c)
       break;
       
     default:
-      Serial.print(morseCode);          // Print morse code
+      Serial.print(morseCode);          // Print morse code (dots and dashes)
       Serial.print("  ");               // Print seperator
       break;
   }
 
-/* ------------------------------------------------------------------------- *
- * Generate the morse code for the character based on the value from the
- * morseTable
- * ------------------------------------------------------------------------- */
+  // -------------------------------------------------------------------------
+  // Generate the morse code for the character based on the value from the
+  // morseTable
+  // -------------------------------------------------------------------------
   int len = morseCode.length();
   
   for (int i=0; i<len; i++) {
@@ -282,16 +284,16 @@ void morseChar(char c)
 
       case '.':
         tone(audioPin, frequency, dotLen);  // start playing a dot tone
-        delay(dotLen+100);
+        delay(dotLen + dotLen);
         break;
 
       case '-':
         tone(audioPin, frequency, dashLen); // start playing a dash tone
-        delay(dashLen+100);
+        delay(dashLen + dotLen);
         break;
 
       case 'S':                         // Space between words, wait a bit
-        delay(dotLen*5);
+        delay(5 * dotLen);
         break;
 
       default:
